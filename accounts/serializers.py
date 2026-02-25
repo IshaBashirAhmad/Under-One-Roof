@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.models import OTP, User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class EmailOTPRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -64,3 +65,25 @@ class RegisterSerializer(serializers.Serializer):
         user.save()
 
         return user
+    
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = User.USERNAME_FIELD
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Extra security checks
+        if not self.user.is_verified:
+            raise serializers.ValidationError("Email not verified.")
+
+        if not self.user.is_active:
+            raise serializers.ValidationError("Account inactive.")
+
+        # Optional: Add extra user data in response
+        data.update({
+            "email": self.user.email,
+            "role": self.user.role,
+        })
+
+        return data
